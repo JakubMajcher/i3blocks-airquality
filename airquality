@@ -1,0 +1,48 @@
+#!/bin/bash
+
+API_KEY="" # API_KEY from https://api.openweathermap.org
+LON="" # Lontitude e.g. 00.0000
+LAT="" # Latitude e.g. 00.0000
+
+BAD_QUALITY_WARN=3
+
+RESPONSE_BODY=$(curl https://api.openweathermap.org/data/2.5/air_pollution\?lat=${LAT}\&lon=${LON}\&appid=${API_KEY})
+AQI=$(echo "$RESPONSE_BODY" | jq '.list[0].main.aqi')
+AIR_COMPONENTS=$(echo "$RESPONSE_BODY" | jq '.list[0].components')
+
+CO=$(echo "$AIR_COMPONENTS" | jq '.co')
+NO=$(echo "$AIR_COMPONENTS" | jq '.no')
+NO2=$(echo "$AIR_COMPONENTS" | jq '.no2')
+O3=$(echo "$AIR_COMPONENTS" | jq '.o3')
+SO2=$(echo "$AIR_COMPONENTS" | jq '.so2')
+PM2_5=$(echo "$AIR_COMPONENTS" | jq '.pm2_5')
+PM10=$(echo "$AIR_COMPONENTS" | jq '.pm10')
+NH3=$(echo "$AIR_COMPONENTS" | jq '.nh3')
+
+echo "PM2.5: ${PM2_5} | PM10: ${PM10}"
+
+### window size
+WIDTH=${WIDTH:-200}
+HEIGHT=${HEIGHT:-200}
+
+case "$BLOCK_BUTTON" in
+  1|2|3) 
+
+	# the position of the upper left corner of the popup
+	posX=$((BLOCK_X - WIDTH / 2))
+	posY=$((BLOCK_Y - HEIGHT))
+
+	TEXT_ON_CLICK="$(echo "Air Quality for $LAT $LON\nAQI: $AQI\nCO: $CO\nNO: $NO\nNO2: $NO2\nO3: $O3\nSO2: $SO2\nPM2.5: $PM2_5\nPM10: $PM10\nNH3: $NH3")"
+	
+	i3-msg -q "exec yad --text='$TEXT_ON_CLICK' \
+        --width=$WIDTH --height=$HEIGHT \
+	    --undecorated --fixed \
+	    --close-on-unfocus --no-buttons \
+	    --posx=$posX --posy=$posY \
+	    > /dev/null"
+esac
+
+### DANGER QUALITY OF AIR
+if [[ "${AQI}" -ge "${BAD_QUALITY_WARN}" ]]; then
+  exit 33
+fi
